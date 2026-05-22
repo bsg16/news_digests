@@ -32,7 +32,13 @@ sources:
 """.strip(),
         encoding="utf-8",
     )
+    monkeypatch.setattr(cli, "load_dotenv", lambda: None)
     monkeypatch.delenv("DEEPSEEK_API_KEY", raising=False)
+    monkeypatch.setattr(
+        cli,
+        "fetch_source_articles",
+        lambda source: pytest.fail("fetch_source_articles must not be called without an API key"),
+    )
 
     with pytest.raises(SystemExit) as exc:
         cli.main(["run", "--config", str(config_path), "--output-dir", str(tmp_path / "out")])
@@ -86,3 +92,68 @@ sources:
     output = (output_dir / "2026-05-22.md").read_text(encoding="utf-8")
     assert "### Story" in output
     assert "- **核心观点**：核心观点" in output
+
+
+def test_cli_invalid_now_exits_with_usage_error(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    config_path = tmp_path / "sources.yaml"
+    config_path.write_text(
+        """
+sources:
+  - name: Example
+    type: rss
+    url: https://example.com/feed.xml
+    enabled: true
+""".strip(),
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "test-key")
+    monkeypatch.setattr(cli, "load_dotenv", lambda: None)
+    monkeypatch.setattr(
+        cli,
+        "fetch_source_articles",
+        lambda source: pytest.fail("fetch_source_articles must not be called with an invalid --now"),
+    )
+
+    with pytest.raises(SystemExit) as exc:
+        cli.main(
+            [
+                "run",
+                "--config",
+                str(config_path),
+                "--output-dir",
+                str(tmp_path / "out"),
+                "--now",
+                "not-a-timestamp",
+            ]
+        )
+
+    assert exc.value.code == 2
+
+
+@pytest.mark.parametrize("window_hours", ["0", "-1"])
+def test_cli_rejects_nonpositive_window_hours(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, window_hours: str
+) -> None:
+    config_path = tmp_path / "sources.yaml"
+    config_path.write_text(
+        """
+sources:
+  - name: Example
+    type: rss
+    url: https://example.com/feed.xml
+    enabled: true
+""".strip(),
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "test-key")
+    monkeypatch.setattr(cli, "load_dotenv", lambda: None)
+    monkeypatch.setattr(
+        cli,
+        "fetch_source_articles",
+        lambda source: pytest.fail("fetch_source_articles must not be called with nonpositive --window-hours"),
+    )
+
+    with pytest.raises(SystemExit) as exc:
+        cli.main(["run", "--config", str(config_path), "--window-hours", window_hours])
+
+    assert exc.value.code == 2

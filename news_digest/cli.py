@@ -35,9 +35,13 @@ def main(argv: list[str] | None = None) -> int:
     if not api_key:
         parser.exit(2, "config error: DEEPSEEK_API_KEY is required for the DeepSeek summarizer.\n")
 
+    try:
+        now = parse_now(args.now)
+    except ValueError as exc:
+        parser.exit(2, f"config error: invalid --now timestamp: {exc}\n")
+
     model = os.getenv("NEWS_DIGEST_MODEL", DEFAULT_MODEL).strip() or DEFAULT_MODEL
     summarizer = build_summarizer(api_key, model)
-    now = parse_now(args.now)
 
     articles, source_errors = collect_recent_articles(
         sources,
@@ -67,9 +71,19 @@ def build_parser() -> argparse.ArgumentParser:
     run = subparsers.add_parser("run", help="Generate a Markdown news digest.")
     run.add_argument("--config", type=Path, default=Path("sources.yaml"))
     run.add_argument("--output-dir", type=Path, default=Path("output"))
-    run.add_argument("--window-hours", type=int, default=24)
+    run.add_argument("--window-hours", type=positive_int, default=24)
     run.add_argument("--now", default=None, help="ISO timestamp for reproducible runs.")
     return parser
+
+
+def positive_int(value: str) -> int:
+    try:
+        parsed = int(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError("must be a positive integer") from exc
+    if parsed <= 0:
+        raise argparse.ArgumentTypeError("must be a positive integer")
+    return parsed
 
 
 def build_summarizer(api_key: str, model: str) -> DeepSeekSummarizer:
