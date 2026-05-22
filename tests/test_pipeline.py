@@ -55,6 +55,16 @@ def test_deduplicate_articles_prefers_first_url_match() -> None:
     assert result == [first, second]
 
 
+def test_deduplicate_articles_treats_reordered_query_params_as_duplicates() -> None:
+    now = datetime(2026, 5, 22, 12, 0, tzinfo=timezone.utc)
+    first = article("First", "https://example.com/item?a=1&b=2", now)
+    duplicate = article("Duplicate", "https://example.com/item?b=2&a=1", now)
+
+    result = deduplicate_articles([first, duplicate])
+
+    assert result == [first]
+
+
 def test_collect_recent_articles_continues_after_source_error() -> None:
     now = datetime(2026, 5, 22, 12, 0, tzinfo=timezone.utc)
     good = SourceConfig(name="Good", type="rss", url="https://example.com/good.xml")

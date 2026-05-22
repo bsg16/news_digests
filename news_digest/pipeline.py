@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from datetime import datetime, timedelta, timezone
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
@@ -16,7 +17,7 @@ def collect_recent_articles(
     *,
     now: datetime,
     window_hours: int,
-    fetcher,
+    fetcher: Callable[[SourceConfig], list[Article]],
 ) -> tuple[list[Article], list[SourceError]]:
     articles: list[Article] = []
     errors: list[SourceError] = []
@@ -91,5 +92,5 @@ def _canonical_url(url: str) -> str:
         for key, value in parse_qsl(parts.query, keep_blank_values=True)
         if key not in TRACKING_KEYS and not key.startswith(TRACKING_PREFIXES)
     ]
-    query = urlencode(query_pairs, doseq=True)
+    query = urlencode(sorted(query_pairs), doseq=True)
     return urlunsplit((parts.scheme.lower(), parts.netloc.lower(), parts.path.rstrip("/"), query, ""))
