@@ -23,7 +23,7 @@ def render_markdown(report: DigestReport) -> str:
     if report.global_key_points:
         lines.extend(f"- {point}" for point in report.global_key_points)
     else:
-        lines.append("- 过去 24 小时内没有找到可摘要的文章。")
+        lines.append(f"- 过去 {report.window_hours} 小时内没有找到可摘要的文章。")
 
     if report.source_errors:
         lines.extend(["", "## 抓取警告", ""])

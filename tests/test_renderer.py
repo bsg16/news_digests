@@ -55,6 +55,42 @@ def test_render_markdown_handles_empty_report_and_source_errors() -> None:
     assert "- Broken: network down" in markdown
 
 
+def test_render_markdown_empty_report_uses_report_window_hours() -> None:
+    report = DigestReport(
+        generated_at=datetime(2026, 5, 22, 19, 30, tzinfo=timezone.utc),
+        window_hours=6,
+        article_summaries=[],
+    )
+
+    markdown = render_markdown(report)
+
+    assert "过去 6 小时内没有找到可摘要的文章。" in markdown
+    assert "过去 24 小时内没有找到可摘要的文章。" not in markdown
+
+
+def test_render_markdown_groups_articles_by_first_seen_source_order() -> None:
+    report = DigestReport(
+        generated_at=datetime(2026, 5, 22, 19, 30, tzinfo=timezone.utc),
+        window_hours=24,
+        article_summaries=[
+            summary("BBC News", "BBC first"),
+            summary("Reuters", "Reuters story"),
+            summary("BBC News", "BBC second"),
+        ],
+        global_key_points=["全球新闻摘要。"],
+    )
+
+    markdown = render_markdown(report)
+
+    bbc_index = markdown.index("## BBC News")
+    reuters_index = markdown.index("## Reuters")
+    assert bbc_index < reuters_index
+    bbc_section = markdown[bbc_index:reuters_index]
+    assert "### BBC first" in bbc_section
+    assert "### BBC second" in bbc_section
+    assert "### Reuters story" not in bbc_section
+
+
 def test_write_report_uses_date_filename(tmp_path: Path) -> None:
     report = DigestReport(
         generated_at=datetime(2026, 5, 22, 19, 30, tzinfo=timezone.utc),
