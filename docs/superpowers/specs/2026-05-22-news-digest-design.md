@@ -11,7 +11,7 @@ The first implementation targets RSS/Atom sources. The configuration and code bo
 - Runtime shape: Python CLI run locally or on a server, suitable for cron.
 - Source strategy: RSS/Atom first, with a future `webpage` source type reserved in the design.
 - Source configuration: user-maintained `sources.yaml`.
-- AI strategy: pluggable summarizer interface, default provider is OpenAI.
+- AI strategy: pluggable summarizer interface, default provider is DeepSeek.
 - Output path: `output/YYYY-MM-DD.md`.
 - Report time window: articles published in the past 24 hours from runtime.
 - Report structure: global key points first, then article summaries grouped by source.
@@ -24,7 +24,7 @@ Use a small modular CLI instead of a single large script.
 - `cli`: parses command-line options, loads config, orchestrates the pipeline.
 - `config`: reads and validates `sources.yaml` and runtime settings.
 - `sources`: fetches and normalizes articles from configured sources.
-- `summarizers`: defines the AI provider interface and the default OpenAI implementation.
+- `summarizers`: defines the AI provider interface and the default DeepSeek implementation.
 - `renderer`: turns normalized summaries into Markdown.
 - `models`: shared dataclasses for sources, articles, summaries, and report metadata.
 
@@ -63,12 +63,14 @@ The first implementation should reject unsupported source types with a clear err
 
 AI settings should come from environment variables by default:
 
-- `OPENAI_API_KEY`
+- `DEEPSEEK_API_KEY`
 - `NEWS_DIGEST_MODEL`, optional model override
 
-The default model should be `gpt-5.4-mini`, defined in code as a single constant so it can be changed safely later. This choice favors lower latency and cost for routine summarization while allowing `NEWS_DIGEST_MODEL` to override it.
+The default model should be `deepseek-v4-flash`, defined in code as a single constant so it can be changed safely later. This choice follows the requested default and favors a fast model for routine summarization while allowing `NEWS_DIGEST_MODEL` to override it.
 
-The OpenAI implementation should use the Responses API through the official Python SDK.
+The DeepSeek implementation should use DeepSeek's OpenAI-compatible Chat Completions API through the official Python OpenAI SDK, with `base_url` set to `https://api.deepseek.com`.
+
+API keys must not be committed. Developers should set `DEEPSEEK_API_KEY` in the shell environment or an untracked local `.env` file.
 
 ## Data Flow
 
@@ -133,7 +135,7 @@ Failure behavior:
 - Invalid YAML or schema: fail fast and list the invalid field.
 - Source network failure: log warning and continue other sources.
 - Unsupported source type: fail config validation.
-- Missing `OPENAI_API_KEY` when using OpenAI: fail before fetching sources.
+- Missing `DEEPSEEK_API_KEY` when using DeepSeek: fail before fetching sources.
 - AI request failure for one article: mark that article as failed, continue the rest, and include enough log context to retry manually.
 - Output write failure: fail the command.
 
