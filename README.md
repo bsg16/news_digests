@@ -5,7 +5,7 @@ Fetch RSS articles from configured news sources, summarize them in Simplified Ch
 ## Setup
 
 ```bash
-python -m venv .venv
+python3 -m venv .venv
 source .venv/bin/activate
 pip install -e ".[dev]"
 cp sources.yaml.example sources.yaml

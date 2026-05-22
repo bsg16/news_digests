@@ -11,3 +11,5 @@ output/
 .agents/
 plugins/
 *.egg-info/
+news-digest.log
+uv.lock
