@@ -94,6 +94,64 @@ sources:
     assert "- **核心观点**：核心观点" in output
 
 
+def test_parse_now_default_returns_local_aware_datetime() -> None:
+    now = cli.parse_now(None)
+
+    assert now.tzinfo is not None
+    assert now.utcoffset() is not None
+    assert now.utcoffset() == datetime.now().astimezone().utcoffset()
+
+
+def test_cli_run_uses_provided_aware_timestamp_date_for_output_name(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    config_path = tmp_path / "sources.yaml"
+    output_dir = tmp_path / "output"
+    config_path.write_text(
+        """
+sources:
+  - name: Example
+    type: rss
+    url: https://example.com/feed.xml
+    enabled: true
+""".strip(),
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "test-key")
+    monkeypatch.setattr(cli, "load_dotenv", lambda: None)
+    monkeypatch.setattr(cli, "build_summarizer", lambda api_key, model: FakeSummarizer())
+    monkeypatch.setattr(
+        cli,
+        "fetch_source_articles",
+        lambda source: [
+            Article(
+                source_name=source.name,
+                title="Local date story",
+                url="https://example.com/local-date-story",
+                published_at=datetime(2026, 5, 22, 16, 45, tzinfo=timezone.utc),
+                author=None,
+                source_text="Story text",
+            )
+        ],
+    )
+
+    code = cli.main(
+        [
+            "run",
+            "--config",
+            str(config_path),
+            "--output-dir",
+            str(output_dir),
+            "--now",
+            "2026-05-23T00:30:00+08:00",
+        ]
+    )
+
+    assert code == 0
+    assert (output_dir / "2026-05-23.md").exists()
+    assert not (output_dir / "2026-05-22.md").exists()
+
+
 def test_cli_invalid_now_exits_with_usage_error(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     config_path = tmp_path / "sources.yaml"
     config_path.write_text(

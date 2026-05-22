@@ -35,7 +35,8 @@ def collect_recent_articles(
 def filter_articles_by_window(articles: list[Article], *, now: datetime, window_hours: int) -> list[Article]:
     if now.tzinfo is None:
         now = now.replace(tzinfo=timezone.utc)
-    cutoff = now.astimezone(timezone.utc) - timedelta(hours=window_hours)
+    now_utc = now.astimezone(timezone.utc)
+    cutoff = now_utc - timedelta(hours=window_hours)
 
     result: list[Article] = []
     for item in articles:
@@ -46,7 +47,8 @@ def filter_articles_by_window(articles: list[Article], *, now: datetime, window_
         published = item.published_at
         if published.tzinfo is None:
             published = published.replace(tzinfo=timezone.utc)
-        if published.astimezone(timezone.utc) >= cutoff:
+        published_utc = published.astimezone(timezone.utc)
+        if cutoff <= published_utc <= now_utc:
             result.append(item)
 
     return result
@@ -77,11 +79,27 @@ def summarize_articles(
     summarizer: Summarizer,
 ) -> tuple[list[ArticleSummary], list[str]]:
     summaries: list[ArticleSummary] = []
+    successful_summaries: list[ArticleSummary] = []
 
     for item in articles:
-        summaries.append(summarizer.summarize_article(item))
+        try:
+            summary = summarizer.summarize_article(item)
+        except Exception as exc:
+            summaries.append(
+                ArticleSummary(
+                    article=item,
+                    core_viewpoint="摘要生成失败。",
+                    key_points=[f"摘要生成失败：{exc}"],
+                    tags=["摘要失败"],
+                    summary_error=str(exc),
+                )
+            )
+            continue
 
-    global_points = summarizer.summarize_global_key_points(summaries) if summaries else []
+        summaries.append(summary)
+        successful_summaries.append(summary)
+
+    global_points = summarizer.summarize_global_key_points(successful_summaries) if successful_summaries else []
     return summaries, global_points
 
 

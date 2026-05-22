@@ -29,6 +29,7 @@ class ArticleSummary:
     core_viewpoint: str
     key_points: list[str]
     tags: list[str]
+    summary_error: str | None = None
 
 
 @dataclass(frozen=True)

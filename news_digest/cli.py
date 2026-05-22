@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 import os
 import sys
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -92,8 +92,8 @@ def build_summarizer(api_key: str, model: str) -> DeepSeekSummarizer:
 
 def parse_now(value: str | None) -> datetime:
     if value is None:
-        return datetime.now(timezone.utc)
+        return datetime.now().astimezone()
     parsed = datetime.fromisoformat(value)
     if parsed.tzinfo is None:
-        return parsed.replace(tzinfo=timezone.utc)
-    return parsed.astimezone(timezone.utc)
+        return parsed.astimezone()
+    return parsed.astimezone()

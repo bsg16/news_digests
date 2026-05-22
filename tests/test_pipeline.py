@@ -44,6 +44,17 @@ def test_filter_articles_by_window_keeps_recent_and_unknown_dates() -> None:
     assert result == [recent, unknown]
 
 
+def test_filter_articles_by_window_drops_future_articles_but_keeps_unknown_dates() -> None:
+    now = datetime(2026, 5, 22, 12, 0, tzinfo=timezone.utc)
+    recent = article("Recent", "https://example.com/recent-2", now - timedelta(hours=2))
+    future = article("Future", "https://example.com/future", now + timedelta(minutes=1))
+    unknown = article("Unknown", "https://example.com/unknown-2", None)
+
+    result = filter_articles_by_window([recent, future, unknown], now=now, window_hours=24)
+
+    assert result == [recent, unknown]
+
+
 def test_deduplicate_articles_prefers_first_url_match() -> None:
     now = datetime(2026, 5, 22, 12, 0, tzinfo=timezone.utc)
     first = article("First", "https://example.com/item?utm_source=rss", now)
@@ -91,3 +102,38 @@ def test_summarize_articles_returns_article_and_global_summaries() -> None:
 
     assert article_summaries[0].core_viewpoint == "First core"
     assert global_points == ["共处理 1 篇文章"]
+
+
+def test_summarize_articles_continues_after_article_summary_failure() -> None:
+    now = datetime(2026, 5, 22, 12, 0, tzinfo=timezone.utc)
+    items = [
+        article("Fails", "https://example.com/fails", now),
+        article("Succeeds", "https://example.com/succeeds", now),
+    ]
+
+    class FailingSummarizer(FakeSummarizer):
+        def __init__(self) -> None:
+            self.global_summary_titles: list[str] = []
+
+        def summarize_article(self, item: Article) -> ArticleSummary:
+            if item.title == "Fails":
+                raise RuntimeError("model unavailable")
+            return super().summarize_article(item)
+
+        def summarize_global_key_points(self, summaries: list[ArticleSummary]) -> list[str]:
+            self.global_summary_titles = [summary.article.title for summary in summaries]
+            return super().summarize_global_key_points(summaries)
+
+    summarizer = FailingSummarizer()
+
+    article_summaries, global_points = summarize_articles(items, summarizer)
+
+    assert [summary.article.title for summary in article_summaries] == ["Fails", "Succeeds"]
+    failed_summary = article_summaries[0]
+    assert failed_summary.core_viewpoint == "摘要生成失败。"
+    assert failed_summary.key_points == ["摘要生成失败：model unavailable"]
+    assert failed_summary.tags == ["摘要失败"]
+    assert failed_summary.summary_error == "model unavailable"
+    assert article_summaries[1].core_viewpoint == "Succeeds core"
+    assert global_points == ["共处理 1 篇文章"]
+    assert summarizer.global_summary_titles == ["Succeeds"]

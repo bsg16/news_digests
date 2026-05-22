@@ -40,6 +40,37 @@ def test_render_markdown_uses_required_article_format() -> None:
     assert "- **标签**：国际、经济" in markdown
 
 
+def test_render_markdown_renders_failed_article_summary_in_normal_article_format() -> None:
+    failed = ArticleSummary(
+        article=Article(
+            source_name="Example",
+            title="Story with failed summary",
+            url="https://example.com/failed",
+            published_at=datetime(2026, 5, 22, 8, 15, tzinfo=timezone.utc),
+            author=None,
+            source_text="source text",
+        ),
+        core_viewpoint="摘要生成失败。",
+        key_points=["摘要生成失败：model unavailable"],
+        tags=["摘要失败"],
+        summary_error="model unavailable",
+    )
+    report = DigestReport(
+        generated_at=datetime(2026, 5, 22, 19, 30, tzinfo=timezone.utc),
+        window_hours=24,
+        article_summaries=[failed],
+        global_key_points=[],
+    )
+
+    markdown = render_markdown(report)
+
+    assert "## Example" in markdown
+    assert "### Story with failed summary" in markdown
+    assert "- **核心观点**：摘要生成失败。" in markdown
+    assert "- **关键信息**：\n    - 摘要生成失败：model unavailable" in markdown
+    assert "- **标签**：摘要失败" in markdown
+
+
 def test_render_markdown_handles_empty_report_and_source_errors() -> None:
     report = DigestReport(
         generated_at=datetime(2026, 5, 22, 19, 30, tzinfo=timezone.utc),
