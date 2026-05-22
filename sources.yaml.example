@@ -1,0 +1,66 @@
+sources:
+  - name: BBC News
+    type: rss
+    url: http://feeds.bbci.co.uk/news/rss.xml
+    enabled: true
+    language: en
+
+  - name: BBC World
+    type: rss
+    url: http://feeds.bbci.co.uk/news/world/rss.xml
+    enabled: true
+    language: en
+
+  - name: CNN International
+    type: rss
+    url: http://rss.cnn.com/rss/edition.rss
+    enabled: true
+    language: en
+
+  - name: CNN World
+    type: rss
+    url: http://rss.cnn.com/rss/edition_world.rss
+    enabled: true
+    language: en
+
+  - name: New York Times Top Stories
+    type: rss
+    url: https://rss.nytimes.com/services/xml/rss/nyt/HomePage.xml
+    enabled: true
+    language: en
+
+  - name: New York Times World
+    type: rss
+    url: https://rss.nytimes.com/services/xml/rss/nyt/World.xml
+    enabled: true
+    language: en
+
+  - name: The Economist Leaders
+    type: rss
+    url: https://www.economist.com/leaders/rss.xml
+    enabled: true
+    language: en
+
+  - name: The Economist International
+    type: rss
+    url: https://www.economist.com/international/rss.xml
+    enabled: true
+    language: en
+
+  - name: Wall Street Journal World News
+    type: rss
+    url: https://feeds.content.dowjones.io/public/rss/RSSWorldNews
+    enabled: true
+    language: en
+
+  - name: Wall Street Journal Markets
+    type: rss
+    url: https://feeds.content.dowjones.io/public/rss/RSSMarketsMain
+    enabled: true
+    language: en
+
+  - name: Global Times Candidate
+    type: rss
+    url: https://www.globaltimes.cn/rss/outbrain.xml
+    enabled: false
+    language: en

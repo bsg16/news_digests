@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "news-digest"
+version = "0.1.0"
+description = "Fetch RSS news articles and generate a Simplified Chinese Markdown digest."
+requires-python = ">=3.11"
+dependencies = [
+  "feedparser>=6.0.11",
+  "openai>=1.0.0",
+  "python-dateutil>=2.9.0",
+  "python-dotenv>=1.0.1",
+  "PyYAML>=6.0.2",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.0.0",
+]
+
+[project.scripts]
+news-digest = "news_digest.cli:main"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
