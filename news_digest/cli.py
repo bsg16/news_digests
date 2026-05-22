@@ -96,4 +96,4 @@ def parse_now(value: str | None) -> datetime:
     parsed = datetime.fromisoformat(value)
     if parsed.tzinfo is None:
         return parsed.astimezone()
-    return parsed.astimezone()
+    return parsed

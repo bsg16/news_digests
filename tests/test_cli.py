@@ -102,6 +102,23 @@ def test_parse_now_default_returns_local_aware_datetime() -> None:
     assert now.utcoffset() == datetime.now().astimezone().utcoffset()
 
 
+def test_parse_now_preserves_provided_aware_timestamp() -> None:
+    now = cli.parse_now("2026-05-23T00:30:00+08:00")
+
+    assert now == datetime.fromisoformat("2026-05-23T00:30:00+08:00")
+    assert now.tzinfo is not None
+    assert now.utcoffset() == datetime.fromisoformat("2026-05-23T00:30:00+08:00").utcoffset()
+
+
+def test_parse_now_treats_naive_timestamp_as_local_aware_datetime() -> None:
+    now = cli.parse_now("2026-05-23T00:30:00")
+
+    assert now.tzinfo is not None
+    assert now.utcoffset() is not None
+    assert now.replace(tzinfo=None) == datetime(2026, 5, 23, 0, 30)
+    assert now.utcoffset() == datetime(2026, 5, 23, 0, 30).astimezone().utcoffset()
+
+
 def test_cli_run_uses_provided_aware_timestamp_date_for_output_name(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
