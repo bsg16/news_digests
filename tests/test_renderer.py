@@ -68,6 +68,35 @@ def test_render_markdown_empty_report_uses_report_window_hours() -> None:
     assert "过去 24 小时内没有找到可摘要的文章。" not in markdown
 
 
+def test_render_markdown_does_not_claim_no_articles_when_only_global_points_are_missing() -> None:
+    report = DigestReport(
+        generated_at=datetime(2026, 5, 22, 19, 30, tzinfo=timezone.utc),
+        window_hours=24,
+        article_summaries=[summary("BBC News", "Story")],
+        global_key_points=[],
+    )
+
+    markdown = render_markdown(report)
+
+    assert "没有找到可摘要的文章" not in markdown
+    assert "## BBC News" in markdown
+    assert "### Story" in markdown
+
+
+def test_render_markdown_empty_report_shows_no_articles_even_with_global_points() -> None:
+    report = DigestReport(
+        generated_at=datetime(2026, 5, 22, 19, 30, tzinfo=timezone.utc),
+        window_hours=6,
+        article_summaries=[],
+        global_key_points=["摘要器返回了全局要点。"],
+    )
+
+    markdown = render_markdown(report)
+
+    assert "## 全局要点\n\n- 过去 6 小时内没有找到可摘要的文章。" in markdown
+    assert "摘要器返回了全局要点。" not in markdown
+
+
 def test_render_markdown_groups_articles_by_first_seen_source_order() -> None:
     report = DigestReport(
         generated_at=datetime(2026, 5, 22, 19, 30, tzinfo=timezone.utc),

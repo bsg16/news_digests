@@ -20,10 +20,10 @@ def render_markdown(report: DigestReport) -> str:
         "",
     ]
 
-    if report.global_key_points:
-        lines.extend(f"- {point}" for point in report.global_key_points)
-    else:
+    if not report.article_summaries:
         lines.append(f"- 过去 {report.window_hours} 小时内没有找到可摘要的文章。")
+    elif report.global_key_points:
+        lines.extend(f"- {point}" for point in report.global_key_points)
 
     if report.source_errors:
         lines.extend(["", "## 抓取警告", ""])
