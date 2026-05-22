@@ -23,6 +23,9 @@ dev = [
 [project.scripts]
 news-digest = "news_digest.cli:main"
 
+[tool.setuptools.packages.find]
+include = ["news_digest*"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
