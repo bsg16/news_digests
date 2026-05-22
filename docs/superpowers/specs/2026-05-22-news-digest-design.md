@@ -4,13 +4,13 @@
 
 Build a Python CLI that can run from cron every day, fetch articles from multiple configured news sources, summarize them in Chinese with an AI provider, and write a Markdown daily report.
 
-The first implementation targets RSS/Atom sources. The configuration and code boundaries should leave room for future webpage sources and non-OpenAI AI providers without rewriting the pipeline.
+The first implementation targets RSS/Atom sources. The configuration and code boundaries should leave room for future webpage sources and other AI providers without rewriting the pipeline.
 
 ## Confirmed Decisions
 
 - Runtime shape: Python CLI run locally or on a server, suitable for cron.
 - Source strategy: RSS/Atom first, with a future `webpage` source type reserved in the design.
-- Source configuration: user-maintained `sources.yaml`.
+- Source configuration: user-maintained `sources.yaml`, seeded from a researched `sources.yaml.example`.
 - AI strategy: pluggable summarizer interface, default provider is DeepSeek.
 - Output path: `output/YYYY-MM-DD.md`.
 - Report time window: articles published in the past 24 hours from runtime.
@@ -38,7 +38,9 @@ Optional arguments can override the config path, output directory, time window, 
 
 ## Configuration
 
-`sources.yaml` owns the news source list. First version supports `rss` entries:
+`sources.yaml` owns the news source list. The project should provide a researched `sources.yaml.example` so the first run does not require the user to find every RSS URL manually. The user can copy and edit this file into `sources.yaml`.
+
+First version supports `rss` entries:
 
 ```yaml
 sources:
@@ -61,6 +63,96 @@ sources:
 
 The first implementation should reject unsupported source types with a clear error instead of silently ignoring them.
 
+### Initial RSS Catalog
+
+The implementation should create `sources.yaml.example` from a conservative starting catalog. These URLs were checked on 2026-05-22. Feed availability can change, so source failures must be logged without stopping the whole digest.
+
+Enabled starter feeds:
+
+```yaml
+sources:
+  - name: BBC News
+    type: rss
+    url: http://feeds.bbci.co.uk/news/rss.xml
+    enabled: true
+    language: en
+
+  - name: BBC World
+    type: rss
+    url: http://feeds.bbci.co.uk/news/world/rss.xml
+    enabled: true
+    language: en
+
+  - name: CNN International
+    type: rss
+    url: http://rss.cnn.com/rss/edition.rss
+    enabled: true
+    language: en
+
+  - name: CNN World
+    type: rss
+    url: http://rss.cnn.com/rss/edition_world.rss
+    enabled: true
+    language: en
+
+  - name: New York Times Top Stories
+    type: rss
+    url: https://rss.nytimes.com/services/xml/rss/nyt/HomePage.xml
+    enabled: true
+    language: en
+
+  - name: New York Times World
+    type: rss
+    url: https://rss.nytimes.com/services/xml/rss/nyt/World.xml
+    enabled: true
+    language: en
+
+  - name: The Economist Leaders
+    type: rss
+    url: https://www.economist.com/leaders/rss.xml
+    enabled: true
+    language: en
+
+  - name: The Economist International
+    type: rss
+    url: https://www.economist.com/international/rss.xml
+    enabled: true
+    language: en
+
+  - name: Wall Street Journal World News
+    type: rss
+    url: https://feeds.content.dowjones.io/public/rss/RSSWorldNews
+    enabled: true
+    language: en
+
+  - name: Wall Street Journal Markets
+    type: rss
+    url: https://feeds.content.dowjones.io/public/rss/RSSMarketsMain
+    enabled: true
+    language: en
+
+  - name: Global Times Candidate
+    type: rss
+    url: https://www.globaltimes.cn/rss/outbrain.xml
+    enabled: false
+    language: en
+```
+
+Optional verified feeds that can be copied into `sources.yaml` when broader coverage is wanted:
+
+- CNN Business: `http://rss.cnn.com/rss/money_news_international.rss`
+- New York Times Business: `https://rss.nytimes.com/services/xml/rss/nyt/Business.xml`
+- New York Times Technology: `https://rss.nytimes.com/services/xml/rss/nyt/Technology.xml`
+- The Economist Finance & Economics: `https://www.economist.com/finance-and-economics/rss.xml`
+- The Economist China: `https://www.economist.com/china/rss.xml`
+- The Economist Asia: `https://www.economist.com/asia/rss.xml`
+- Wall Street Journal US Business: `https://feeds.content.dowjones.io/public/rss/WSJcomUSBusiness`
+- Wall Street Journal Technology: `https://feeds.content.dowjones.io/public/rss/RSSWSJD`
+
+The Global Times RSS candidate is disabled by default because the accessible feed is titled `outbrain` and may not behave like a stable daily news feed. If it does not produce suitable recent articles, Global Times should be handled later through the reserved `webpage` source type.
+
+Some publishers, especially The Economist and Wall Street Journal, may expose only summaries or links to paywalled articles. The first version should summarize only the text available from RSS entries and avoid bypassing paywalls.
+
 AI settings should come from environment variables by default:
 
 - `DEEPSEEK_API_KEY`
@@ -75,22 +167,23 @@ API keys must not be committed. Developers should set `DEEPSEEK_API_KEY` in the 
 ## Data Flow
 
 1. CLI loads `sources.yaml`.
-2. Config validation filters disabled sources and reports invalid entries.
-3. RSS fetcher downloads feeds and normalizes entries into articles with:
+2. If `sources.yaml` is missing, CLI fails with a message that points to `sources.yaml.example`.
+3. Config validation filters disabled sources and reports invalid entries.
+4. RSS fetcher downloads feeds and normalizes entries into articles with:
    - source name
    - title
    - URL
    - published timestamp when available
    - author when available
    - short source text from feed summary/content
-4. Pipeline filters articles to the past 24 hours.
-5. Pipeline deduplicates articles by canonical URL, falling back to title plus source when URL is missing.
-6. Summarizer creates a concise Simplified Chinese summary for each article, including:
+5. Pipeline filters articles to the past 24 hours.
+6. Pipeline deduplicates articles by canonical URL, falling back to title plus source when URL is missing.
+7. Summarizer creates a concise Simplified Chinese summary for each article, including:
    - core viewpoint
    - key-information bullet list
    - tags
-7. Summarizer creates global key points from the day article summaries.
-8. Renderer writes `output/YYYY-MM-DD.md`.
+8. Summarizer creates global key points from the day article summaries.
+9. Renderer writes `output/YYYY-MM-DD.md`.
 
 ## Markdown Output
 
@@ -131,7 +224,7 @@ The CLI should continue when one source fails and include a warning in logs. A s
 
 Failure behavior:
 
-- Missing `sources.yaml`: fail fast with a clear path-specific message.
+- Missing `sources.yaml`: fail fast with a clear path-specific message that points to `sources.yaml.example`.
 - Invalid YAML or schema: fail fast and list the invalid field.
 - Source network failure: log warning and continue other sources.
 - Unsupported source type: fail config validation.
