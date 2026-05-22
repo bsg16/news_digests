@@ -5,7 +5,7 @@ import pytest
 
 import news_digest.rss as rss
 from news_digest.models import SourceConfig
-from news_digest.rss import FeedFetchError, fetch_source_articles, parse_feed_bytes, parse_feed_text
+from news_digest.rss import FeedFetchError, fetch_source_articles, parse_feed_bytes, parse_feed_file, parse_feed_text
 
 
 def test_parse_feed_text_normalizes_entries() -> None:
@@ -72,6 +72,29 @@ def test_parse_feed_bytes_honors_xml_encoding_declaration() -> None:
     assert len(articles) == 1
     assert articles[0].title == "Café"
     assert articles[0].source_text == "Café summary."
+
+
+def test_parse_feed_file_honors_xml_encoding_declaration(tmp_path: Path) -> None:
+    source = SourceConfig(name="Encoded File", type="rss", url="https://example.com/feed.xml", enabled=True, language="en")
+    xml = """<?xml version="1.0" encoding="ISO-8859-1"?>
+<rss version="2.0">
+  <channel>
+    <item>
+      <title>Café</title>
+      <link>https://example.com/cafe-file</link>
+      <description>Café file summary.</description>
+    </item>
+  </channel>
+</rss>
+"""
+    path = tmp_path / "feed.xml"
+    path.write_bytes(xml.encode("iso-8859-1"))
+
+    articles = parse_feed_file(source, path)
+
+    assert len(articles) == 1
+    assert articles[0].title == "Café"
+    assert articles[0].source_text == "Café file summary."
 
 
 def test_parse_feed_text_preserves_html_block_and_break_boundaries() -> None:
@@ -145,3 +168,17 @@ def test_fetch_source_articles_wraps_url_errors(monkeypatch: pytest.MonkeyPatch)
         fetch_source_articles(source)
 
     assert isinstance(exc_info.value.__cause__, URLError)
+
+
+def test_fetch_source_articles_wraps_timeouts(monkeypatch: pytest.MonkeyPatch) -> None:
+    source = SourceConfig(name="Slow", type="rss", url="https://example.com/feed.xml", enabled=True, language="en")
+
+    def fake_urlopen(request: object, timeout: int) -> object:
+        raise TimeoutError("timed out")
+
+    monkeypatch.setattr(rss, "urlopen", fake_urlopen)
+
+    with pytest.raises(FeedFetchError, match="failed to fetch Slow") as exc_info:
+        fetch_source_articles(source)
+
+    assert isinstance(exc_info.value.__cause__, TimeoutError)

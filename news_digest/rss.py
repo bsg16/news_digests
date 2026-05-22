@@ -4,7 +4,6 @@ from datetime import datetime, timezone
 from html.parser import HTMLParser
 from pathlib import Path
 from typing import Any
-from urllib.error import URLError
 from urllib.request import Request, urlopen
 
 import feedparser
@@ -79,14 +78,14 @@ def fetch_source_articles(source: SourceConfig, timeout_seconds: int = 20) -> li
     try:
         with urlopen(request, timeout=timeout_seconds) as response:
             data = response.read()
-    except URLError as error:
+    except OSError as error:
         raise FeedFetchError(f"failed to fetch {source.name}: {error}") from error
 
     return parse_feed_bytes(source, data)
 
 
 def parse_feed_file(source: SourceConfig, path: Path) -> list[Article]:
-    return parse_feed_text(source, path.read_text(encoding="utf-8"))
+    return parse_feed_bytes(source, path.read_bytes())
 
 
 def parse_feed_bytes(source: SourceConfig, data: bytes) -> list[Article]:
