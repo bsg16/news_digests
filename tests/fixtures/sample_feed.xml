@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Example Feed</title>
+    <item>
+      <title>First Story</title>
+      <link>https://example.com/first</link>
+      <author>Reporter One</author>
+      <pubDate>Fri, 22 May 2026 04:00:00 GMT</pubDate>
+      <description><![CDATA[<p>First story summary with <strong>markup</strong>.</p>]]></description>
+    </item>
+    <item>
+      <title>Second Story</title>
+      <link>https://example.com/second?utm_source=rss</link>
+      <pubDate>Thu, 21 May 2026 03:00:00 GMT</pubDate>
+      <description>Second story summary.</description>
+    </item>
+  </channel>
+</rss>
