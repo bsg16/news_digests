@@ -12,6 +12,8 @@ DEFAULT_MODEL = "deepseek-v4-flash"
 DEEPSEEK_BASE_URL = "https://api.deepseek.com"
 MAX_TOKENS = 1200
 TOPIC_MERGE_MAX_TOKENS = 6000
+REQUEST_TIMEOUT_SECONDS = 60.0
+MAX_RETRIES = 1
 
 
 class SummaryParseError(ValueError):
@@ -23,7 +25,12 @@ class DeepSeekSummarizer:
         if not api_key.strip():
             raise ValueError("DeepSeek API key must not be empty.")
         self.model = model
-        self.client = client or OpenAI(api_key=api_key, base_url=DEEPSEEK_BASE_URL)
+        self.client = client or OpenAI(
+            api_key=api_key,
+            base_url=DEEPSEEK_BASE_URL,
+            timeout=REQUEST_TIMEOUT_SECONDS,
+            max_retries=MAX_RETRIES,
+        )
 
     def summarize_article(self, item: Article) -> ArticleSummary:
         payload = self._json_completion(_article_prompt(item))

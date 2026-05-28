@@ -236,6 +236,30 @@ def test_deepseek_summarizer_rejects_empty_api_key() -> None:
         DeepSeekSummarizer(api_key="  ", client=FakeClient())
 
 
+def test_deepseek_summarizer_default_client_uses_timeout_and_limited_retries(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[dict[str, Any]] = []
+
+    class FakeOpenAI:
+        def __init__(self, **kwargs: Any) -> None:
+            calls.append(kwargs)
+
+    monkeypatch.setattr("news_digest.summarizers.deepseek.OpenAI", FakeOpenAI)
+
+    summarizer = DeepSeekSummarizer(api_key="test-key")
+
+    assert summarizer.client.__class__ is FakeOpenAI
+    assert calls == [
+        {
+            "api_key": "test-key",
+            "base_url": "https://api.deepseek.com",
+            "timeout": 60.0,
+            "max_retries": 1,
+        }
+    ]
+
+
 def test_deepseek_summarizer_returns_empty_global_points_without_client_call() -> None:
     client = FakeClient()
     summarizer = DeepSeekSummarizer(api_key="test-key", client=client)

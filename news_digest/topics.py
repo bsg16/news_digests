@@ -6,7 +6,7 @@ from news_digest.models import ArticleSummary, TopicSummary
 
 
 DEFAULT_TOPIC_CHUNK_SIZE = 30
-DEFAULT_FINAL_TOPIC_CHUNK_SIZE = 200
+DEFAULT_TOPIC_MERGE_PASSES = 3
 
 
 class TopicMerger(Protocol):
@@ -19,30 +19,27 @@ def build_topic_summaries(
     topic_merger: TopicMerger,
     *,
     chunk_size: int = DEFAULT_TOPIC_CHUNK_SIZE,
-    final_chunk_size: int = DEFAULT_FINAL_TOPIC_CHUNK_SIZE,
+    max_passes: int = DEFAULT_TOPIC_MERGE_PASSES,
 ) -> list[TopicSummary]:
     if chunk_size <= 0:
         raise ValueError("chunk_size must be positive.")
-    if final_chunk_size <= 0:
-        raise ValueError("final_chunk_size must be positive.")
+    if max_passes <= 0:
+        raise ValueError("max_passes must be positive.")
 
     candidates = [_singleton_topic(summary) for summary in article_summaries]
     if not candidates:
         return []
 
-    if len(candidates) > chunk_size:
-        candidates = _merge_in_chunks(candidates, topic_merger, chunk_size=chunk_size)
+    for pass_index in range(max_passes):
+        if len(candidates) <= chunk_size:
+            return _merge_or_keep(candidates, topic_merger)
 
-    if len(candidates) <= final_chunk_size:
-        return _merge_or_keep(candidates, topic_merger)
+        merged = _merge_in_chunks(candidates, topic_merger, chunk_size=chunk_size)
+        if pass_index == max_passes - 1:
+            return merged
+        candidates = _interleave_for_next_pass(merged, chunk_size=chunk_size)
 
-    while len(candidates) > final_chunk_size:
-        previous_count = len(candidates)
-        candidates = _merge_in_chunks(candidates, topic_merger, chunk_size=chunk_size)
-        if len(candidates) >= previous_count:
-            return candidates
-
-    return _merge_or_keep(candidates, topic_merger)
+    return candidates
 
 
 def _merge_in_chunks(
@@ -63,6 +60,16 @@ def _merge_or_keep(candidates: list[TopicSummary], topic_merger: TopicMerger) ->
     except Exception:
         return candidates
     return merged
+
+
+def _interleave_for_next_pass(candidates: list[TopicSummary], *, chunk_size: int) -> list[TopicSummary]:
+    chunks = [candidates[index : index + chunk_size] for index in range(0, len(candidates), chunk_size)]
+    interleaved: list[TopicSummary] = []
+    for offset in range(chunk_size):
+        for chunk in chunks:
+            if offset < len(chunk):
+                interleaved.append(chunk[offset])
+    return interleaved
 
 
 def _singleton_topic(summary: ArticleSummary) -> TopicSummary:

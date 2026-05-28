@@ -60,7 +60,7 @@ def test_build_topic_summaries_uses_chunked_llm_merge_then_final_reduce() -> Non
     ]
     merger = FakeTopicMerger()
 
-    topics = build_topic_summaries(summaries, merger, chunk_size=2, final_chunk_size=10)
+    topics = build_topic_summaries(summaries, merger, chunk_size=2, max_passes=2)
 
     assert len(topics) == 3
     assert topics[0].title == "美国对伊朗发动新一轮打击"
@@ -79,8 +79,10 @@ def test_build_topic_summaries_uses_chunked_llm_merge_then_final_reduce() -> Non
         ],
         [
             "US carries out new strikes on Iran military site",
-            "Five people found alive after week trapped in flooded Laos cave",
             "U.S. Military Conducts New Strikes on Iran",
+        ],
+        [
+            "Five people found alive after week trapped in flooded Laos cave",
             "Jill Biden says she thought husband was having a stroke during 2024 debate",
         ],
     ]
@@ -91,7 +93,7 @@ def test_build_topic_summaries_passes_promotional_items_to_llm_instead_of_rule_f
     real_story = summary("BBC World", "US carries out new strikes on Iran military site")
     merger = FakeTopicMerger()
 
-    build_topic_summaries([promotional, real_story], merger, chunk_size=10, final_chunk_size=10)
+    build_topic_summaries([promotional, real_story], merger, chunk_size=10)
 
     assert merger.calls == [["0% intro APR until 2024 is 100% insane", "US carries out new strikes on Iran military site"]]
 
@@ -112,3 +114,21 @@ def test_build_topic_summaries_falls_back_to_singletons_when_llm_merge_fails() -
 def test_build_topic_summaries_rejects_nonpositive_chunk_size() -> None:
     with pytest.raises(ValueError, match="chunk_size"):
         build_topic_summaries([], FakeTopicMerger(), chunk_size=0)
+
+
+def test_build_topic_summaries_never_sends_oversized_final_batch_to_llm() -> None:
+    class RecordingMerger:
+        def __init__(self) -> None:
+            self.call_sizes: list[int] = []
+
+        def merge_topic_summaries(self, candidates: list[TopicSummary]) -> list[TopicSummary]:
+            self.call_sizes.append(len(candidates))
+            return candidates
+
+    merger = RecordingMerger()
+    summaries = [summary("Example", f"Story {index}") for index in range(25)]
+
+    build_topic_summaries(summaries, merger, chunk_size=10)
+
+    assert merger.call_sizes
+    assert max(merger.call_sizes) <= 10
