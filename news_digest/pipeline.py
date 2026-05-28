@@ -77,6 +77,8 @@ def canonical_article_key(item: Article) -> str:
 def summarize_articles(
     articles: list[Article],
     summarizer: Summarizer,
+    *,
+    include_global: bool = True,
 ) -> tuple[list[ArticleSummary], list[str]]:
     summaries: list[ArticleSummary] = []
     successful_summaries: list[ArticleSummary] = []
@@ -99,7 +101,11 @@ def summarize_articles(
         summaries.append(summary)
         successful_summaries.append(summary)
 
-    global_points = summarizer.summarize_global_key_points(successful_summaries) if successful_summaries else []
+    global_points = (
+        summarizer.summarize_global_key_points(successful_summaries)
+        if include_global and successful_summaries
+        else []
+    )
     return summaries, global_points
 
 

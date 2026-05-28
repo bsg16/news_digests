@@ -14,6 +14,7 @@ from news_digest.pipeline import collect_recent_articles, summarize_articles
 from news_digest.renderer import write_report
 from news_digest.rss import fetch_source_articles
 from news_digest.summarizers.deepseek import DEFAULT_MODEL, DeepSeekSummarizer
+from news_digest.topics import build_topic_summaries
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -49,11 +50,15 @@ def main(argv: list[str] | None = None) -> int:
         window_hours=args.window_hours,
         fetcher=fetch_source_articles,
     )
-    article_summaries, global_points = summarize_articles(articles, summarizer)
+    article_summaries, _ = summarize_articles(articles, summarizer, include_global=False)
+    topic_summaries = build_topic_summaries(article_summaries, summarizer)
+    global_input = [topic.article_summaries[0] for topic in topic_summaries if topic.article_summaries]
+    global_points = summarizer.summarize_global_key_points(global_input) if global_input else []
     report = DigestReport(
         generated_at=now,
         window_hours=args.window_hours,
         article_summaries=article_summaries,
+        topic_summaries=topic_summaries,
         global_key_points=global_points,
         source_errors=source_errors,
     )

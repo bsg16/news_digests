@@ -4,7 +4,7 @@ from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
 
-from news_digest.models import ArticleSummary, DigestReport
+from news_digest.models import ArticleSummary, DigestReport, TopicSummary
 
 
 def render_markdown(report: DigestReport) -> str:
@@ -29,10 +29,15 @@ def render_markdown(report: DigestReport) -> str:
         lines.extend(["", "## 抓取警告", ""])
         lines.extend(f"- {error.source_name}: {error.message}" for error in report.source_errors)
 
-    for source_name, summaries in _group_by_source(report.article_summaries).items():
-        lines.extend(["", f"## {source_name}", ""])
-        for item in summaries:
-            lines.extend(_render_article_summary(item))
+    if report.topic_summaries:
+        lines.extend(["", "## 新闻主题", ""])
+        for item in report.topic_summaries:
+            lines.extend(_render_topic_summary(item))
+    else:
+        for source_name, summaries in _group_by_source(report.article_summaries).items():
+            lines.extend(["", f"## {source_name}", ""])
+            for item in summaries:
+                lines.extend(_render_article_summary(item))
 
     return "\n".join(lines).rstrip() + "\n"
 
@@ -72,4 +77,27 @@ def _render_article_summary(item: ArticleSummary) -> list[str]:
             "",
         ]
     )
+    return lines
+
+
+def _render_topic_summary(item: TopicSummary) -> list[str]:
+    lines = [
+        f"### {item.title}",
+        "",
+        f"- **核心观点**：{item.core_viewpoint}",
+        "- **关键信息**：",
+    ]
+    lines.extend(f"    - {point}" for point in item.key_points)
+    lines.extend(
+        [
+            f"- **标签**：{'、'.join(item.tags)}",
+            f"- **来源**：{'、'.join(item.source_names)}",
+            "- **相关链接**：",
+        ]
+    )
+    lines.extend(
+        f"    - {summary.article.source_name}｜{summary.article.title}：{summary.article.url}"
+        for summary in item.article_summaries
+    )
+    lines.append("")
     return lines

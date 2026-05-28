@@ -4,7 +4,7 @@ from typing import Any
 
 import pytest
 
-from news_digest.models import Article, ArticleSummary
+from news_digest.models import Article, ArticleSummary, TopicSummary
 from news_digest.summarizers.deepseek import DEFAULT_MODEL, DeepSeekSummarizer, SummaryParseError
 
 
@@ -35,6 +35,24 @@ class FakeCompletions:
         self.calls.append(kwargs)
         if self.content is not UNSET:
             return FakeResponse(self.content)
+        if "CANDIDATE_DATA_JSON" in kwargs["messages"][1]["content"]:
+            return FakeResponse(
+                json.dumps(
+                    {
+                        "topics": [
+                            {
+                                "title": "美国再次打击伊朗军事目标",
+                                "core_viewpoint": "美国对伊朗军事设施发动新一轮打击。",
+                                "key_points": ["美国实施军事打击。", "多家媒体报道同一事件。"],
+                                "tags": ["美国", "伊朗"],
+                                "candidate_indices": [0, 1],
+                            }
+                        ],
+                        "excluded_candidate_indices": [2],
+                    },
+                    ensure_ascii=False,
+                )
+            )
         if "全局要点" in kwargs["messages"][1]["content"]:
             return FakeResponse('{"global_key_points":["第一条全局要点","第二条全局要点"]}')
         return FakeResponse(
@@ -97,6 +115,83 @@ def test_deepseek_summarizer_parses_global_key_points() -> None:
     result = summarizer.summarize_global_key_points([article_summary])
 
     assert result == ["第一条全局要点", "第二条全局要点"]
+
+
+def test_deepseek_summarizer_merges_topic_candidates_with_llm_indices() -> None:
+    client = FakeClient()
+    summarizer = DeepSeekSummarizer(api_key="test-key", client=client)
+    first = TopicSummary(
+        title="US carries out new strikes on Iran military site",
+        core_viewpoint="美国打击伊朗军事设施。",
+        key_points=["美国实施军事打击。"],
+        tags=["美国", "伊朗"],
+        article_summaries=[
+            ArticleSummary(
+                article=sample_article(),
+                core_viewpoint="美国打击伊朗军事设施。",
+                key_points=["美国实施军事打击。"],
+                tags=["美国", "伊朗"],
+            )
+        ],
+    )
+    second = TopicSummary(
+        title="U.S. Military Conducts New Strikes on Iran",
+        core_viewpoint="美军对伊朗发动新打击。",
+        key_points=["美军发动打击。"],
+        tags=["美国", "伊朗"],
+        article_summaries=[
+            ArticleSummary(
+                article=Article(
+                    source_name="WSJ",
+                    title="U.S. Military Conducts New Strikes on Iran",
+                    url="https://example.com/wsj",
+                    published_at=datetime(2026, 5, 22, 4, 0, tzinfo=timezone.utc),
+                    author=None,
+                    source_text="Iran strikes.",
+                ),
+                core_viewpoint="美军对伊朗发动新打击。",
+                key_points=["美军发动打击。"],
+                tags=["美国", "伊朗"],
+            )
+        ],
+    )
+    excluded = TopicSummary(
+        title="0% intro APR until 2024 is 100% insane",
+        core_viewpoint="信用卡推广。",
+        key_points=["信用卡推广。"],
+        tags=["推广"],
+        article_summaries=[
+            ArticleSummary(
+                article=Article(
+                    source_name="CNN World",
+                    title="0% intro APR until 2024 is 100% insane",
+                    url="https://example.com/ad",
+                    published_at=datetime(2026, 5, 22, 4, 0, tzinfo=timezone.utc),
+                    author=None,
+                    source_text="Ad.",
+                ),
+                core_viewpoint="信用卡推广。",
+                key_points=["信用卡推广。"],
+                tags=["推广"],
+            )
+        ],
+    )
+
+    result = summarizer.merge_topic_summaries([first, second, excluded])
+
+    assert len(result) == 1
+    assert result[0].title == "美国再次打击伊朗军事目标"
+    assert result[0].source_names == ["BBC News", "WSJ"]
+    assert [item.article.title for item in result[0].article_summaries] == [
+        "Trade story",
+        "U.S. Military Conducts New Strikes on Iran",
+    ]
+    call = client.chat.completions.calls[0]
+    assert call["max_tokens"] == 6000
+    prompt = call["messages"][1]["content"]
+    assert "CANDIDATE_DATA_JSON:" in prompt
+    assert "excluded_candidate_indices" in prompt
+    assert "明显广告、促销、导购" in prompt
 
 
 def test_deepseek_summarizer_raises_for_invalid_json() -> None:

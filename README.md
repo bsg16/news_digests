@@ -1,6 +1,6 @@
 # News Digest
 
-Fetch RSS articles from configured news sources, summarize them in Simplified Chinese with DeepSeek, and write a Markdown daily report to `output/YYYY-MM-DD.md`.
+Fetch RSS articles from configured news sources, summarize them in Simplified Chinese with DeepSeek, merge duplicate events into topic-level summaries, and write a Markdown daily report to `output/YYYY-MM-DD.md`.
 
 ## Setup
 
@@ -25,6 +25,8 @@ Equivalent module command:
 ```bash
 python -m news_digest run
 ```
+
+The default report is topic-based. The pipeline first removes exact URL duplicates, summarizes each article, then asks the LLM to merge and filter topic candidates in chunks before writing the final Markdown. Semantic deduplication and low-value item filtering are handled by the LLM, not by title keyword rules.
 
 ## Configuration
 

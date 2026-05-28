@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 
 from news_digest import cli
-from news_digest.models import Article, ArticleSummary
+from news_digest.models import Article, ArticleSummary, TopicSummary
 
 
 class FakeSummarizer:
@@ -18,6 +18,9 @@ class FakeSummarizer:
 
     def summarize_global_key_points(self, summaries: list[ArticleSummary]) -> list[str]:
         return ["全局要点"]
+
+    def merge_topic_summaries(self, candidates: list[TopicSummary]) -> list[TopicSummary]:
+        return candidates
 
 
 def test_cli_fails_before_fetch_without_api_key(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

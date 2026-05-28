@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from pathlib import Path
 
-from news_digest.models import Article, ArticleSummary, DigestReport, SourceError
+from news_digest.models import Article, ArticleSummary, DigestReport, SourceError, TopicSummary
 from news_digest.renderer import output_path_for, render_markdown, write_report
 
 
@@ -149,6 +149,35 @@ def test_render_markdown_groups_articles_by_first_seen_source_order() -> None:
     assert "### BBC first" in bbc_section
     assert "### BBC second" in bbc_section
     assert "### Reuters story" not in bbc_section
+
+
+def test_render_markdown_uses_topic_summaries_when_present() -> None:
+    first = summary("BBC World", "US carries out new strikes on Iran military site")
+    second = summary("Wall Street Journal World News", "U.S. Military Conducts New Strikes on Iran")
+    report = DigestReport(
+        generated_at=datetime(2026, 5, 22, 19, 30, tzinfo=timezone.utc),
+        window_hours=24,
+        article_summaries=[first, second],
+        topic_summaries=[
+            TopicSummary(
+                title="US carries out new strikes on Iran military site",
+                core_viewpoint="美国对伊朗军事设施发动新一轮打击。",
+                key_points=["美国发动军事打击。", "多家媒体报道同一事件。"],
+                tags=["美国", "伊朗"],
+                article_summaries=[first, second],
+            )
+        ],
+        global_key_points=["美伊局势紧张。"],
+    )
+
+    markdown = render_markdown(report)
+
+    assert "## 新闻主题" in markdown
+    assert "## BBC World" not in markdown
+    assert "### US carries out new strikes on Iran military site" in markdown
+    assert "- **来源**：BBC World、Wall Street Journal World News" in markdown
+    assert "- **相关链接**：" in markdown
+    assert "    - BBC World｜US carries out new strikes on Iran military site：https://example.com/article" in markdown
 
 
 def test_write_report_uses_date_filename(tmp_path: Path) -> None:

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Protocol
 
-from news_digest.models import Article, ArticleSummary
+from news_digest.models import Article, ArticleSummary, TopicSummary
 
 
 class Summarizer(Protocol):
@@ -10,4 +10,7 @@ class Summarizer(Protocol):
         raise NotImplementedError
 
     def summarize_global_key_points(self, summaries: list[ArticleSummary]) -> list[str]:
+        raise NotImplementedError
+
+    def merge_topic_summaries(self, candidates: list[TopicSummary]) -> list[TopicSummary]:
         raise NotImplementedError
